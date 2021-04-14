@@ -15,11 +15,20 @@ metadata:
   name: aks-periscope-role
 rules:
 - apiGroups: ["","metrics.k8s.io"]
-  resources: ["pods", "nodes"]
-  verbs: ["get", "watch", "list"]
+  resources: ["pods", "pods/portforward", "nodes"]
+  verbs: ["get", "watch", "list", "create"]
 - apiGroups: ["aks-periscope.azure.github.com"]
   resources: ["diagnostics"]
   verbs: ["get", "watch", "list", "create", "patch"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["access.smi-spec.io", "specs.smi-spec.io", "split.smi-spec.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -80,6 +89,8 @@ spec:
             name: kubeobjects-config
         - configMapRef:
             name: nodelogs-config
+        - configMapRef:
+            name: collectorflags-config
         - secretRef:
             name: azureblob-secret
         volumeMounts:
@@ -98,7 +109,7 @@ spec:
           path: /var/log/aks-periscope
           type: DirectoryOrCreate
 ---
-apiVersion: v1
+apiVersion: v1 
 kind: Secret
 metadata:
   name: azureblob-secret
@@ -108,29 +119,37 @@ data:
   AZURE_BLOB_ACCOUNT_NAME: # <accountName, base64 encoded>
   AZURE_BLOB_SAS_KEY: # <saskey, base64 encoded>
 ---
-apiVersion: v1 
-kind: ConfigMap 
+apiVersion: v1
+kind: ConfigMap
 metadata:
   name: containerlogs-config
   namespace: aks-periscope
 data:
   DIAGNOSTIC_CONTAINERLOGS_LIST: kube-system
 ---
-apiVersion: v1 
-kind: ConfigMap 
+apiVersion: v1
+kind: ConfigMap
 metadata:
   name: kubeobjects-config
   namespace: aks-periscope
 data:
   DIAGNOSTIC_KUBEOBJECTS_LIST: kube-system/pod kube-system/service kube-system/deployment
 ---
-apiVersion: v1 
-kind: ConfigMap 
+apiVersion: v1
+kind: ConfigMap
 metadata:
   name: nodelogs-config
   namespace: aks-periscope
 data:
   DIAGNOSTIC_NODELOGS_LIST: /var/log/azure/cluster-provision.log /var/log/cloud-init.log
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collectorflags-config
+  namespace: aks-periscope
+data:
+  FLAGS_LIST: # enable collector: OSM, SMI
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
