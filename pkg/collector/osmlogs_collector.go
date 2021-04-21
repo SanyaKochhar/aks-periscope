@@ -63,23 +63,24 @@ func (collector *OsmLogsCollector) Collect() error {
 	collector.AddToCollectorFiles(allResourceConfigsFile)
 
 	// * Collect information for various resources across all meshes in the cluster
-	meshList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..meshName}")
+	meshList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..meshName}", " ")
 	if err != nil {
 		return err
 	}
 
 	for _, meshName := range meshList {
-		namespaceInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}")
+		namespaceInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
 		if err != nil {
 			return err
 		}
 		collectNamespaceMetadata(collector, namespaceInMesh, rootPath, meshName)
+		collectControllerLogs(collector, rootPath, meshName)
 	}
 
 	return nil
 }
 
-// * Collects metadata for each ns in a given mesh
+// ** Collects metadata for each ns in a given mesh **
 func collectNamespaceMetadata(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
 	for _, namespace := range namespaces {
 		namespaceMetadataFile := filepath.Join(rootPath, meshName+"_"+namespace+"_"+"metadata")
@@ -97,11 +98,39 @@ func collectNamespaceMetadata(collector *OsmLogsCollector, namespaces []string, 
 	return nil
 }
 
-// Helper function to get all meshes in the cluster
-func getResourceList(resource, label, outputFormat string) ([]string, error) {
+// ** Collects logs of every OSM controller in a given mesh **
+func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName string) error {
+	controllerInfos, err := getResourceList("pods", "app=osm-controller", "-o=custom-columns=NAME:{..metadata.name},NAMESPACE:{..metadata.namespace}", "\n")
+	if err != nil {
+		return err
+	}
+	for _, controllerInfo := range controllerInfos[1:] {
+		controllerInfoParts := strings.Fields(controllerInfo)
+		if len(controllerInfoParts) > 0 {
+			podName := controllerInfoParts[0]
+			namespace := controllerInfoParts[1]
+
+			logsFile := filepath.Join(rootPath, meshName+"_controller_logs_"+podName)
+			logs, err := utils.RunCommandOnContainer("kubectl", "logs", "-n", namespace, podName)
+			if err != nil {
+				return err
+			}
+			err = utils.WriteToFile(logsFile, logs)
+			if err != nil {
+				return err
+			}
+			collector.AddToCollectorFiles(logsFile)
+		}
+
+	}
+	return nil
+}
+
+// Helper function to get all resoures of given type in the cluster
+func getResourceList(resource, label, outputFormat, separator string) ([]string, error) {
 	resourceList, err := utils.RunCommandOnContainer("kubectl", "get", resource, "--all-namespaces", "--selector", label, outputFormat)
 	if err != nil {
 		return nil, err
 	}
-	return strings.Split(strings.Trim(resourceList, "\""), " "), nil
+	return strings.Split(strings.Trim(resourceList, "\""), separator), nil
 }
