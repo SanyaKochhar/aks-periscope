@@ -69,19 +69,19 @@ func (collector *OsmLogsCollector) Collect() error {
 	}
 
 	for _, meshName := range meshList {
-		namespaceInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
+		namespacesInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
 		if err != nil {
 			return err
 		}
-		collectNamespaceMetadata(collector, namespaceInMesh, rootPath, meshName)
+		collectDataFromNamespaces(collector, namespacesInMesh, rootPath, meshName)
 		collectControllerLogs(collector, rootPath, meshName)
 	}
 
 	return nil
 }
 
-// ** Collects metadata for each ns in a given mesh **
-func collectNamespaceMetadata(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
+// * Collects data for namespaces in a given mesh
+func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
 	for _, namespace := range namespaces {
 		namespaceMetadataFile := filepath.Join(rootPath, meshName+"_"+namespace+"_"+"metadata")
 		namespaceMetadata, err := utils.RunCommandOnContainer("kubectl", "get", "namespaces", namespace, "-o=jsonpath={..metadata}", "-o", "json")
@@ -93,6 +93,50 @@ func collectNamespaceMetadata(collector *OsmLogsCollector, namespaces []string, 
 			return err
 		}
 		collector.AddToCollectorFiles(namespaceMetadataFile)
+
+		namespaceServicesFile := filepath.Join(rootPath, meshName+"_"+namespace+"_"+"services")
+		namespaceServices, err := utils.RunCommandOnContainer("kubectl", "get", "services", "-n", namespace)
+		if err != nil {
+			return err
+		}
+		err = utils.WriteToFile(namespaceServicesFile, namespaceServices)
+		if err != nil {
+			return err
+		}
+		collector.AddToCollectorFiles(namespaceServicesFile)
+
+		namespaceServicesAllConfigsFile := filepath.Join(rootPath, meshName+"_"+namespace+"_"+"services"+"_"+"all_configs")
+		namespaceServicesAllConfigs, err := utils.RunCommandOnContainer("kubectl", "get", "services", "-n", namespace, "-o", "json")
+		if err != nil {
+			return err
+		}
+		err = utils.WriteToFile(namespaceServicesAllConfigsFile, namespaceServicesAllConfigs)
+		if err != nil {
+			return err
+		}
+		collector.AddToCollectorFiles(namespaceServicesAllConfigsFile)
+
+		namespaceEndpointsFile := filepath.Join(rootPath, meshName+"_"+namespace+"_"+"endpoints")
+		namespaceEndpoints, err := utils.RunCommandOnContainer("kubectl", "get", "endpoints", "-n", namespace)
+		if err != nil {
+			return err
+		}
+		err = utils.WriteToFile(namespaceEndpointsFile, namespaceEndpoints)
+		if err != nil {
+			return err
+		}
+		collector.AddToCollectorFiles(namespaceEndpointsFile)
+
+		namespaceEndpointsAllConfigsFile := filepath.Join(rootPath, meshName+"_"+namespace+"_"+"endpoints"+"_"+"all_configs")
+		namespaceEndpointsAllConfigs, err := utils.RunCommandOnContainer("kubectl", "get", "endpoints", "-n", namespace, "-o", "json")
+		if err != nil {
+			return err
+		}
+		err = utils.WriteToFile(namespaceEndpointsAllConfigsFile, namespaceEndpointsAllConfigs)
+		if err != nil {
+			return err
+		}
+		collector.AddToCollectorFiles(namespaceEndpointsAllConfigsFile)
 	}
 
 	return nil
