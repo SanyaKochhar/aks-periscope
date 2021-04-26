@@ -67,7 +67,7 @@ func (collector *OsmLogsCollector) Collect() error {
 	if err != nil {
 		return err
 	}
-	resources := []string{"configMap", "serviceAccount", "service", "endpoint"}
+	resources := []string{"configmap", "serviceaccount", "service", "endpoint", "ingress"}
 	for _, meshName := range meshList {
 		namespacesInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
 		if err != nil {
