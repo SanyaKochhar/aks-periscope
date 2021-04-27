@@ -67,26 +67,29 @@ func (collector *OsmLogsCollector) Collect() error {
 	if err != nil {
 		return err
 	}
-	resources := []string{"configmap", "serviceaccount", "service", "endpoint", "ingress"}
+	resources := []string{
+		"configmap",
+		"serviceaccount",
+		"service",
+		"endpoint",
+		"ingress",
+	}
 	for _, meshName := range meshList {
 		namespacesInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
 		if err != nil {
 			return err
 		}
 
-		collectControllerLogs(collector, rootPath, meshName)
-		if err != nil {
+		if err := collectControllerLogs(collector, rootPath, meshName); err != nil {
 			return err
 		}
 
-		collectNamespaceMetadata(collector, namespacesInMesh, rootPath, meshName)
-		if err != nil {
+		if err := collectNamespaceMetadata(collector, namespacesInMesh, rootPath, meshName); err != nil {
 			return err
 		}
 
 		for _, resource := range resources {
-			err = collectResource(collector, resource, rootPath, meshName)
-			if err != nil {
+			if err:=collectResource(collector, resource, rootPath, meshName); != nil {
 				return err
 			}
 		}
@@ -95,7 +98,7 @@ func (collector *OsmLogsCollector) Collect() error {
 	return nil
 }
 
-// * Collects metadata for each ns in a given mesh
+// * Collects metadata for each namespace in a given mesh
 func collectNamespaceMetadata(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
 	for _, namespace := range namespaces {
 		namespaceMetadataFile := filepath.Join(rootPath, meshName+"_"+namespace+"_"+"metadata")
