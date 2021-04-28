@@ -32,10 +32,8 @@ func (collector *OsmLogsCollector) Collect() error {
 	if err != nil {
 		return err
 	}
-	// can define resources to query in deployment.yaml and iterate through the commands+resources needed and create multiple files
-	// see kubeobject collector for example
 
-	// ** Get ground truth on OSM resources **
+	// ** Collect ground truth on OSM resources **
 	var groundTruthMap = map[string][]string{
 		"allResourcesTable":               []string{"get", "all", "--all-namespaces", "--selector=app.kubernetes.io/name=openservicemesh.io", "-o=wide"},
 		"allResourcesConfigs":             []string{"get", "all", "--all-namespaces", "--selector=app.kubernetes.io/name=openservicemesh.io", "-o=json"},
@@ -49,7 +47,7 @@ func (collector *OsmLogsCollector) Collect() error {
 		}
 	}
 
-	// * Collect information for various resources across all meshes in the cluster
+	// ** Collect information for various resources across all meshes in the cluster **
 	meshList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..meshName}", " ")
 	if err != nil {
 		return err
@@ -71,6 +69,7 @@ func (collector *OsmLogsCollector) Collect() error {
 	return nil
 }
 
+// Helper function to collect output of a given kubectl command to a file
 func collectResourceToFile(collector *OsmLogsCollector, rootPath, fileName string, kubeCmds []string) error {
 	resourceFile := filepath.Join(rootPath, fileName)
 	output, err := utils.RunCommandOnContainer("kubectl", kubeCmds...)
@@ -87,15 +86,15 @@ func collectResourceToFile(collector *OsmLogsCollector, rootPath, fileName strin
 	return nil
 }
 
-// * Collects data for namespaces in a given mesh
+// ** Collect data for namespaces monitored by a given mesh **
 func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
 	for _, namespace := range namespaces {
 		var namespaceResourcesMap = map[string][]string{
-			meshName + "_" + namespace + "_metadata":              []string{"get", "namespaces", namespace, "-o=jsonpath={..metadata}", "-o=json"},
-			meshName + "_" + namespace + "_services":              []string{"get", "services", "-n", namespace},
-			meshName + "_" + namespace + "_services_all_configs":  []string{"get", "services", "-n", namespace, "-o", "json"},
-			meshName + "_" + namespace + "_endpoints":             []string{"get", "endpoints", "-n", namespace},
-			meshName + "_" + namespace + "_endpoints_all_configs": []string{"get", "endpoints", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_metadata":          []string{"get", "namespaces", namespace, "-o=jsonpath={..metadata}", "-o=json"},
+			meshName + "_" + namespace + "_services_table":    []string{"get", "services", "-n", namespace},
+			meshName + "_" + namespace + "_services_configs":  []string{"get", "services", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_endpoints_table":   []string{"get", "endpoints", "-n", namespace},
+			meshName + "_" + namespace + "_endpoints_configs": []string{"get", "endpoints", "-n", namespace, "-o", "json"},
 		}
 
 		for fileName, kubeCmd := range namespaceResourcesMap {
@@ -108,7 +107,7 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 	return nil
 }
 
-// ** Collects logs of every OSM controller in a given mesh **
+// ** Collect logs of every OSM controller in a given mesh **
 func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName string) error {
 	controllerInfos, err := getResourceList("pods", "app=osm-controller", "-o=custom-columns=NAME:{..metadata.name},NAMESPACE:{..metadata.namespace}", "\n")
 	if err != nil {
@@ -123,7 +122,6 @@ func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName strin
 				return err
 			}
 		}
-
 	}
 	return nil
 }
