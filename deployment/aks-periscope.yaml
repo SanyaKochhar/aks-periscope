@@ -72,7 +72,7 @@ spec:
         beta.kubernetes.io/os: linux
       containers:
       - name: aks-periscope
-        image: sanyakochh/aks-periscope:latest
+        image: aksrepos.azurecr.io/staging/aks-periscope:v0.3
         securityContext:
           privileged: true
         imagePullPolicy: Always
