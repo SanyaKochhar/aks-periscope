@@ -28,6 +28,13 @@ func NewOsmLogsCollector(exporter interfaces.Exporter) *OsmLogsCollector {
 
 // Collect implements the interface method
 func (collector *OsmLogsCollector) Collect() error {
+	// Get all OSM deployments in order to collect information for various resources across all meshes in the cluster
+	meshList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..meshName}", " ")
+	if err != nil {
+		return err
+	}
+
+	// Directory where OSM logs will be written to
 	rootPath, err := utils.CreateCollectorDir(collector.GetName())
 	if err != nil {
 		return err
@@ -45,12 +52,6 @@ func (collector *OsmLogsCollector) Collect() error {
 		if err = collectResourceToFile(collector, rootPath, fileName, kubeCmd); err != nil {
 			fmt.Printf("Failed to collect %s for OSM: %+v", fileName, err)
 		}
-	}
-
-	// ** Collect information for various resources across all meshes in the cluster **
-	meshList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..meshName}", " ")
-	if err != nil {
-		return err
 	}
 
 	meshNamespacesList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..metadata.namespace}", " ")
@@ -78,9 +79,15 @@ func (collector *OsmLogsCollector) Collect() error {
 // Helper function to collect output of a given kubectl command to a file
 func collectResourceToFile(collector *OsmLogsCollector, rootPath, fileName string, kubeCmds []string) error {
 	resourceFile := filepath.Join(rootPath, fileName)
-	output, err := utils.RunCommandOnContainer("kubectl", kubeCmds...)
+	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", kubeCmds...)
 	if err != nil {
 		return err
+	}
+
+	output := outputStreams.Stdout
+	// If stdout output is empty, i.e., there is no resource of this type within the cluster, the absence of this resource is logged in the file with the relevant message from stderr (Ex: "No resource found...").
+	if len(output) == 0 {
+		output = outputStreams.Stderr
 	}
 
 	if err = utils.WriteToFile(resourceFile, output); err != nil {
@@ -140,9 +147,17 @@ func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName strin
 
 // Helper function to get all resoures of given type in the cluster
 func getResourceList(resource, label, outputFormat, separator string) ([]string, error) {
-	resourceList, err := utils.RunCommandOnContainer("kubectl", "get", resource, "--all-namespaces", "--selector", label, outputFormat)
+	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", "get", resource, "--all-namespaces", "--selector", label, outputFormat)
 	if err != nil {
 		return nil, err
 	}
+
+	resourceList := outputStreams.Stdout
+	// If the resource is not found within the cluster, then log a message and do not return any resources.
+	if len(resourceList) == 0 {
+		err := fmt.Errorf("No '%s' resource with the label '%s' found in the cluster.", resource, label)
+		return nil, err
+	}
+
 	return strings.Split(strings.Trim(resourceList, "\""), separator), nil
 }

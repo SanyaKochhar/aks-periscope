@@ -11,6 +11,11 @@ import (
 	"strings"
 )
 
+type CommandOutputStreams struct {
+	Stdout string
+	Stderr string
+}
+
 // GetHostName get host name
 func GetHostName() (string, error) {
 	hostname, err := RunCommandOnHost("cat", "/etc/hostname")
@@ -59,20 +64,29 @@ func RunCommandOnHost(command string, arg ...string) (string, error) {
 	return string(out), nil
 }
 
-// RunCommandOnContainer runs a command on container system
-func RunCommandOnContainer(command string, arg ...string) (string, error) {
+// RunCommandOnContainerWithOutputStreams runs a command on container system and returns both the stdout and stderr output streams
+func RunCommandOnContainerWithOutputStreams(command string, arg ...string) (CommandOutputStreams, error) {
 	cmd := exec.Command(command, arg...)
 
-	var out bytes.Buffer
+	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd.Stdout = &out
+	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+
 	err := cmd.Run()
+	outputStreams := CommandOutputStreams{stdout.String(), stderr.String()}
+
 	if err != nil {
-		return "", fmt.Errorf("Fail to run command in container: %s", fmt.Sprint(err)+": "+stderr.String())
+		return outputStreams, fmt.Errorf("Fail to run command in container: %s", fmt.Sprint(err)+": "+stderr.String())
 	}
 
-	return out.String(), nil
+	return outputStreams, nil
+}
+
+// RunCommandOnContainer  runs a command on container system and returns the stdout output stream
+func RunCommandOnContainer(command string, arg ...string) (string, error) {
+	outputStreams, err := RunCommandOnContainerWithOutputStreams(command, arg...)
+	return outputStreams.Stdout, err
 }
 
 // WriteToFile writes data to a file
