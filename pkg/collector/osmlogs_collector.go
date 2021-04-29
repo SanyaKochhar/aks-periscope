@@ -29,7 +29,7 @@ func NewOsmLogsCollector(exporter interfaces.Exporter) *OsmLogsCollector {
 // Collect implements the interface method
 func (collector *OsmLogsCollector) Collect() error {
 	// Get all OSM deployments in order to collect information for various resources across all meshes in the cluster
-	meshList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..meshName}", " ")
+	meshList, err := getResourceList([]string{"get", "deployments", "--all-namespaces", "-l=app=osm-controller", "-o=jsonpath={..meshName}"}, " ")
 	if err != nil {
 		return err
 	}
@@ -48,19 +48,19 @@ func (collector *OsmLogsCollector) Collect() error {
 		"validatingWebhookConfigurations": []string{"get", "ValidatingWebhookConfiguration", "--all-namespaces", "--selector=app.kubernetes.io/name=openservicemesh.io", "-o=json"},
 	}
 
-	for fileName, kubeCmd := range groundTruthMap {
-		if err = collector.collectKubeResourceToFile(rootPath, fileName, kubeCmd); err != nil {
+	for fileName, kubeCmds := range groundTruthMap {
+		if err = collector.collectKubeResourceToFile(rootPath, fileName, kubeCmds); err != nil {
 			fmt.Printf("Failed to collect %s for OSM: %+v", fileName, err)
 		}
 	}
 
-	meshNamespacesList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..metadata.namespace}", " ")
+	meshNamespacesList, err := getResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..metadata.namespace}"}, " ")
 	if err != nil {
 		return err
 	}
 
 	for _, meshName := range meshList {
-		namespacesInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
+		namespacesInMesh, err := getResourceList([]string{"get", "namespaces", "--all-namespaces", "-l", "openservicemesh.io/monitored-by=" + meshName, "-o", "jsonpath={..name}"}, " ")
 		if err != nil {
 			log.Printf("Failed to get namespaces within osm mesh '%s': %+v\n", meshName, err)
 			continue
@@ -81,7 +81,7 @@ func (collector *OsmLogsCollector) Collect() error {
 func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
 	for _, namespace := range namespaces {
 		var namespaceResourcesMap = map[string][]string{
-			meshName + "_" + namespace + "_metadata":                 []string{"get", "namespaces", namespace, "-o=jsonpath={..metadata}", "-o=json"},
+			meshName + "_" + namespace + "_metadata":                 []string{"get", "namespaces", namespace, "-o", "jsonpath={..metadata}", "-o", "json"},
 			meshName + "_" + namespace + "_services_table":           []string{"get", "services", "-n", namespace},
 			meshName + "_" + namespace + "_services_configs":         []string{"get", "services", "-n", namespace, "-o", "json"},
 			meshName + "_" + namespace + "_endpoints_table":          []string{"get", "endpoints", "-n", namespace},
@@ -92,10 +92,15 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 			meshName + "_" + namespace + "_ingresses_configs":        []string{"get", "ingresses", "-n", namespace, "-o", "json"},
 			meshName + "_" + namespace + "_service_accounts_table":   []string{"get", "serviceaccounts", "-n", namespace},
 			meshName + "_" + namespace + "_service_accounts_configs": []string{"get", "serviceaccounts", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_pods_list":                []string{"get", "pods", "-n", namespace},
 		}
 
-		for fileName, kubeCmd := range namespaceResourcesMap {
-			if err := collector.collectKubeResourceToFile(rootPath, fileName, kubeCmd); err != nil {
+		if err := collectPodConfigs(collector, rootPath, meshName, namespace); err != nil {
+			fmt.Printf("Failed to collect pod logs for ns %s", namespace, err)
+		}
+
+		for fileName, kubeCmds := range namespaceResourcesMap {
+			if err := collector.collectKubeResourceToFile(rootPath, fileName, kubeCmds); err != nil {
 				fmt.Printf("Failed to collect %s in OSM monitored namespace %s: %+v", fileName, namespace, err)
 			}
 		}
@@ -104,9 +109,23 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 	return nil
 }
 
+func collectPodConfigs(collector *OsmLogsCollector, rootPath, meshName, namespace string) error {
+	pods, err := getResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
+	if err != nil {
+		return err
+	}
+	for _, podName := range pods {
+		kubeCmds := []string{"get", "pods", "-n", namespace, podName, "-o", "json"}
+		if err := collector.collectKubeResourceToFile(rootPath, meshName+"_"+namespace+"_pod_config_"+podName, kubeCmds); err != nil {
+			fmt.Printf("Failed to collect config for pod %s in OSM monitored namespace %s: %+v", podName, namespace, err)
+		}
+	}
+	return nil
+}
+
 // ** Collect logs of every OSM controller in a given mesh **
 func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName string) error {
-	controllerInfos, err := getResourceList("pods", "app=osm-controller", "-o=custom-columns=NAME:{..metadata.name},NAMESPACE:{..metadata.namespace}", "\n")
+	controllerInfos, err := getResourceList([]string{"get", "pods", "--all-namespaces", "-l", "app=osm-controller", "-o", "custom-columns=NAME:{..metadata.name},NAMESPACE:{..metadata.namespace}"}, "\n")
 	if err != nil {
 		return err
 	}
@@ -123,9 +142,10 @@ func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName strin
 	return nil
 }
 
-// Helper function to get all resoures of given type in the cluster
-func getResourceList(resource, label, outputFormat, separator string) ([]string, error) {
-	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", "get", resource, "--all-namespaces", "--selector", label, outputFormat)
+// Helper function to get a list of all resoures of given type in a specified namespace
+func getResourceList(kubeCmds []string, separator string) ([]string, error) {
+	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", kubeCmds...)
+
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +153,7 @@ func getResourceList(resource, label, outputFormat, separator string) ([]string,
 	resourceList := outputStreams.Stdout
 	// If the resource is not found within the cluster, then log a message and do not return any resources.
 	if len(resourceList) == 0 {
-		err := fmt.Errorf("No '%s' resource with the label '%s' found in the cluster.", resource, label)
+		err := fmt.Errorf("No '%s' resource found in the cluster for given kubectl command", kubeCmds[1])
 		return nil, err
 	}
 
