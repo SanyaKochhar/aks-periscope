@@ -53,12 +53,18 @@ func (collector *OsmLogsCollector) Collect() error {
 		return err
 	}
 
+	meshNamespacesList, err := getResourceList("deployments", "app=osm-controller", "-o=jsonpath={..metadata.namespace}", " ")
+	if err != nil {
+		return err
+	}
+
 	for _, meshName := range meshList {
 		namespacesInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
 		if err != nil {
 			return err
 		}
-		if err = collectDataFromNamespaces(collector, namespacesInMesh, rootPath, meshName); err != nil {
+		osmNamespaces := append(namespacesInMesh, meshNamespacesList...)
+		if err = collectDataFromNamespaces(collector, osmNamespaces, rootPath, meshName); err != nil {
 			fmt.Printf("Failed to collect data from OSM monitored namespaces: %+v", err)
 		}
 		if err = collectControllerLogs(collector, rootPath, meshName); err != nil {
