@@ -96,11 +96,17 @@ func collectResourceToFile(collector *OsmLogsCollector, rootPath, fileName strin
 func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
 	for _, namespace := range namespaces {
 		var namespaceResourcesMap = map[string][]string{
-			meshName + "_" + namespace + "_metadata":          []string{"get", "namespaces", namespace, "-o=jsonpath={..metadata}", "-o=json"},
-			meshName + "_" + namespace + "_services_table":    []string{"get", "services", "-n", namespace},
-			meshName + "_" + namespace + "_services_configs":  []string{"get", "services", "-n", namespace, "-o", "json"},
-			meshName + "_" + namespace + "_endpoints_table":   []string{"get", "endpoints", "-n", namespace},
-			meshName + "_" + namespace + "_endpoints_configs": []string{"get", "endpoints", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_metadata":                 []string{"get", "namespaces", namespace, "-o=jsonpath={..metadata}", "-o=json"},
+			meshName + "_" + namespace + "_services_table":           []string{"get", "services", "-n", namespace},
+			meshName + "_" + namespace + "_services_configs":         []string{"get", "services", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_endpoints_table":          []string{"get", "endpoints", "-n", namespace},
+			meshName + "_" + namespace + "_endpoints_configs":        []string{"get", "endpoints", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_configmaps_table":         []string{"get", "configmaps", "-n", namespace},
+			meshName + "_" + namespace + "_configmaps_configs":       []string{"get", "configmaps", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_ingresses_table":          []string{"get", "ingresses", "-n", namespace},
+			meshName + "_" + namespace + "_ingresses_configs":        []string{"get", "ingresses", "-n", namespace, "-o", "json"},
+			meshName + "_" + namespace + "_service_accounts_table":   []string{"get", "serviceaccounts", "-n", namespace},
+			meshName + "_" + namespace + "_service_accounts_configs": []string{"get", "serviceaccounts", "-n", namespace, "-o", "json"},
 		}
 
 		for fileName, kubeCmd := range namespaceResourcesMap {
