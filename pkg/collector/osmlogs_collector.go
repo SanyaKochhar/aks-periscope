@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 
@@ -62,7 +63,8 @@ func (collector *OsmLogsCollector) Collect() error {
 	for _, meshName := range meshList {
 		namespacesInMesh, err := getResourceList("namespaces", "openservicemesh.io/monitored-by="+meshName, "-o=jsonpath={..name}", " ")
 		if err != nil {
-			return err
+			log.Printf("Failed to get namespaces within osm mesh '%s': %+v\n", meshName, err)
+			continue
 		}
 		osmNamespaces := append(namespacesInMesh, meshNamespacesList...)
 		if err = collectDataFromNamespaces(collector, osmNamespaces, rootPath, meshName); err != nil {
