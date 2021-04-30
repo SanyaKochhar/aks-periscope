@@ -3,7 +3,6 @@ package collector
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 	"strings"
 
 	"github.com/Azure/aks-periscope/pkg/interfaces"
@@ -50,7 +49,7 @@ func (collector *OsmLogsCollector) Collect() error {
 	}
 
 	for fileName, kubeCmd := range groundTruthMap {
-		if err = collectResourceToFile(collector, rootPath, fileName, kubeCmd); err != nil {
+		if err = collector.collectKubeResourceToFile(rootPath, fileName, kubeCmd); err != nil {
 			fmt.Printf("Failed to collect %s for OSM: %+v", fileName, err)
 		}
 	}
@@ -78,29 +77,6 @@ func (collector *OsmLogsCollector) Collect() error {
 	return nil
 }
 
-// Helper function to collect output of a given kubectl command to a file
-func collectResourceToFile(collector *OsmLogsCollector, rootPath, fileName string, kubeCmds []string) error {
-	resourceFile := filepath.Join(rootPath, fileName)
-	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", kubeCmds...)
-	if err != nil {
-		return err
-	}
-
-	output := outputStreams.Stdout
-	// If stdout output is empty, i.e., there is no resource of this type within the cluster, the absence of this resource is logged in the file with the relevant message from stderr (Ex: "No resource found...").
-	if len(output) == 0 {
-		output = outputStreams.Stderr
-	}
-
-	if err = utils.WriteToFile(resourceFile, output); err != nil {
-		return err
-	}
-
-	collector.AddToCollectorFiles(resourceFile)
-
-	return nil
-}
-
 // ** Collect data for namespaces monitored by a given mesh **
 func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
 	for _, namespace := range namespaces {
@@ -119,7 +95,7 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 		}
 
 		for fileName, kubeCmd := range namespaceResourcesMap {
-			if err := collectResourceToFile(collector, rootPath, fileName, kubeCmd); err != nil {
+			if err := collector.collectKubeResourceToFile(rootPath, fileName, kubeCmd); err != nil {
 				fmt.Printf("Failed to collect %s in OSM monitored namespace %s: %+v", fileName, namespace, err)
 			}
 		}
@@ -139,7 +115,7 @@ func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName strin
 		if len(controllerInfoParts) > 0 {
 			podName := controllerInfoParts[0]
 			namespace := controllerInfoParts[1]
-			if err := collectResourceToFile(collector, rootPath, meshName+"_controller_logs_"+podName, []string{"logs", "-n", namespace, podName}); err != nil {
+			if err := collector.collectKubeResourceToFile(rootPath, meshName+"_controller_logs_"+podName, []string{"logs", "-n", namespace, podName}); err != nil {
 				return err
 			}
 		}
