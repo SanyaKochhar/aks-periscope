@@ -43,6 +43,8 @@ func main() {
 	collectors = append(collectors, systemPerfCollector)
 	osmLogsCollector := collector.NewOsmLogsCollector(exporter)
 	collectors = append(collectors, osmLogsCollector)
+	smiLogsCollector := collector.NewSmiLogsCollector(exporter)
+	collectors = append(collectors, smiLogsCollector)
 
 	for _, c := range collectors {
 		waitgroup.Add(1)
