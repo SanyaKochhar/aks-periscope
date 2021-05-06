@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"strings"
 	"sync"
 
@@ -41,10 +42,17 @@ func main() {
 	collectors = append(collectors, kubeletCmdCollector)
 	systemPerfCollector := collector.NewSystemPerfCollector(exporter)
 	collectors = append(collectors, systemPerfCollector)
-	osmLogsCollector := collector.NewOsmLogsCollector(exporter)
-	collectors = append(collectors, osmLogsCollector)
 	smiLogsCollector := collector.NewSmiLogsCollector(exporter)
 	collectors = append(collectors, smiLogsCollector)
+
+	// Checks flags and adds specified collector if matched
+	flags := strings.Fields(os.Getenv("FLAGS_LIST"))
+	for _, flag := range flags {
+		if flag == "OSM" {
+			osmLogsCollector := collector.NewOsmLogsCollector(exporter)
+			collectors = append(collectors, osmLogsCollector)
+		}
+	}
 
 	for _, c := range collectors {
 		waitgroup.Add(1)
