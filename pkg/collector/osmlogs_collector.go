@@ -49,9 +49,8 @@ func (collector *OsmLogsCollector) Collect() error {
 	}
 
 	for fileName, kubeCmds := range groundTruthMap {
-		if err = collector.collectKubeResourceToFile(rootPath, fileName, kubeCmds); err != nil {
+		if err = collector.AddKubectlOutputToCollectorFiles(rootPath, fileName, kubeCmds); err != nil {
 			log.Printf("Failed to collect %s for OSM: %+v", fileName, err)
-		}
 	}
 
 	meshNamespacesList, err := getResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..metadata.namespace}"}, " ")
@@ -100,9 +99,8 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 		}
 
 		for fileName, kubeCmds := range namespaceResourcesMap {
-			if err := collector.collectKubeResourceToFile(rootPath, fileName, kubeCmds); err != nil {
+			if err := collector.AddKubectlOutputToCollectorFiles(rootPath, fileName, kubeCmds); err != nil {
 				log.Printf("Failed to collect %s in OSM monitored namespace %s: %+v", fileName, namespace, err)
-			}
 		}
 	}
 
@@ -134,7 +132,7 @@ func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName strin
 		if len(controllerInfoParts) > 0 {
 			podName := controllerInfoParts[0]
 			namespace := controllerInfoParts[1]
-			if err := collector.collectKubeResourceToFile(rootPath, meshName+"_controller_logs_"+podName, []string{"logs", "-n", namespace, podName}); err != nil {
+			if err := collector.AddKubectlOutputToCollectorFiles(rootPath, meshName+"_controller_logs_"+podName, []string{"logs", "-n", namespace, podName}); err != nil {
 				return err
 			}
 		}

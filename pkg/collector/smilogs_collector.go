@@ -45,7 +45,7 @@ func (collector *SmiLogsCollector) Collect() error {
 		}
 
 		for fileName, kubeCmd := range smiResourcesMap {
-			if err = collector.collectKubeResourceToFile(rootPath, fileName, kubeCmd); err != nil {
+			if err = collector.AddKubectlOutputToCollectorFiles(rootPath, fileName, kubeCmd); err != nil {
 				log.Printf("Failed to collect %s for SMI: %+v", fileName, err)
 			}
 		}

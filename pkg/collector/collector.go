@@ -78,19 +78,20 @@ func (b *BaseCollector) Export() error {
 }
 
 // Helper function to collect output of a given kubectl command to a file. Returns kubectl's stderr output if stdout output is empty.
-func (b *BaseCollector) collectKubeResourceToFile(rootPath, fileName string, kubeCmds []string) error {
-	resourceFile := filepath.Join(rootPath, fileName)
+func (b *BaseCollector) AddKubectlOutputToCollectorFiles(rootPath, fileName string, kubeCmds []string) error {
 	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", kubeCmds...)
 	if err != nil {
 		return err
 	}
 
+	// If kubectl stdout output is empty, i.e., there is no resource of this type within the cluster
+	// the absence of this resource is logged in the file with the relevant message from stderr (Ex: "No resource found...").
 	output := outputStreams.Stdout
-	// If kubectl stdout output is empty, i.e., there is no resource of this type within the cluster, the absence of this resource is logged in the file with the relevant message from stderr (Ex: "No resource found...").
 	if len(output) == 0 {
 		output = outputStreams.Stderr
 	}
 
+	resourceFile := filepath.Join(rootPath, fileName)
 	if err = utils.WriteToFile(resourceFile, output); err != nil {
 		return err
 	}
