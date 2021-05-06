@@ -77,8 +77,9 @@ func (b *BaseCollector) Export() error {
 	return nil
 }
 
-// Helper function to collect output of a given kubectl command to a file. Returns kubectl's stderr output if stdout output is empty.
-func (b *BaseCollector) AddKubectlOutputToCollectorFiles(rootPath, fileName string, kubeCmds []string) error {
+// CollectKubectlOutputToCollectorFiles collects output of a given kubectl command to a file.
+// Returns kubectl's stderr output if stdout output is empty.
+func (b *BaseCollector) CollectKubectlOutputToCollectorFiles(rootPath, fileName string, kubeCmds []string) error {
 	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", kubeCmds...)
 	if err != nil {
 		return err
