@@ -89,6 +89,8 @@ spec:
             name: kubeobjects-config
         - configMapRef:
             name: nodelogs-config
+        - configMapRef:
+            name: collectorflags-config
         - secretRef:
             name: azureblob-secret
         volumeMounts:
@@ -117,29 +119,37 @@ data:
   AZURE_BLOB_ACCOUNT_NAME: # <accountName, base64 encoded>
   AZURE_BLOB_SAS_KEY: # <saskey, base64 encoded>
 ---
-apiVersion: v1 
-kind: ConfigMap 
+apiVersion: v1
+kind: ConfigMap
 metadata:
   name: containerlogs-config
   namespace: aks-periscope
 data:
   DIAGNOSTIC_CONTAINERLOGS_LIST: kube-system
 ---
-apiVersion: v1 
-kind: ConfigMap 
+apiVersion: v1
+kind: ConfigMap
 metadata:
   name: kubeobjects-config
   namespace: aks-periscope
 data:
   DIAGNOSTIC_KUBEOBJECTS_LIST: kube-system/pod kube-system/service kube-system/deployment
 ---
-apiVersion: v1 
-kind: ConfigMap 
+apiVersion: v1
+kind: ConfigMap
 metadata:
   name: nodelogs-config
   namespace: aks-periscope
 data:
   DIAGNOSTIC_NODELOGS_LIST: /var/log/azure/cluster-provision.log /var/log/cloud-init.log
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collectorflags-config
+  namespace: aks-periscope
+data:
+  FLAGS_LIST: "OSM" # enable collector: OSM, SMI
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
