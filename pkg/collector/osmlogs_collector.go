@@ -29,7 +29,7 @@ func NewOsmLogsCollector(exporter interfaces.Exporter) *OsmLogsCollector {
 // Collect implements the interface method
 func (collector *OsmLogsCollector) Collect() error {
 	// Get all OSM deployments in order to collect information for various resources across all meshes in the cluster
-	meshList, err := getResourceList([]string{"get", "deployments", "--all-namespaces", "-l=app=osm-controller", "-o=jsonpath={..meshName}"}, " ")
+	meshList, err := getResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..meshName}"}, " ")
 	if err != nil {
 		return err
 	}
@@ -42,10 +42,10 @@ func (collector *OsmLogsCollector) Collect() error {
 
 	// ** Collect ground truth on OSM resources **
 	var groundTruthMap = map[string][]string{
-		"allResourcesTable":               []string{"get", "all", "--all-namespaces", "--selector=app.kubernetes.io/name=openservicemesh.io", "-o=wide"},
-		"allResourcesConfigs":             []string{"get", "all", "--all-namespaces", "--selector=app.kubernetes.io/name=openservicemesh.io", "-o=json"},
-		"mutatingWebhookConfigurations":   []string{"get", "MutatingWebhookConfiguration", "--all-namespaces", "--selector=app.kubernetes.io/name=openservicemesh.io", "-o=json"},
-		"validatingWebhookConfigurations": []string{"get", "ValidatingWebhookConfiguration", "--all-namespaces", "--selector=app.kubernetes.io/name=openservicemesh.io", "-o=json"},
+		"allResourcesTable":               []string{"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/name=openservicemesh.io", "-o", "wide"},
+		"allResourcesConfigs":             []string{"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/name=openservicemesh.io", "-o", "json"},
+		"mutatingWebhookConfigurations":   []string{"get", "MutatingWebhookConfiguration", "--all-namespaces", "-l", "app.kubernetes.io/name=openservicemesh.io", "-o", "json"},
+		"validatingWebhookConfigurations": []string{"get", "ValidatingWebhookConfiguration", "--all-namespaces", "-l", "app.kubernetes.io/name=openservicemesh.io", "-o", "json"},
 	}
 
 	for fileName, kubeCmds := range groundTruthMap {
