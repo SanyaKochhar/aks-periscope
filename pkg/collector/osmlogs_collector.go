@@ -50,7 +50,7 @@ func (collector *OsmLogsCollector) Collect() error {
 
 	for fileName, kubeCmds := range groundTruthMap {
 		if err = collector.collectKubeResourceToFile(rootPath, fileName, kubeCmds); err != nil {
-			fmt.Printf("Failed to collect %s for OSM: %+v", fileName, err)
+			log.Printf("Failed to collect %s for OSM: %+v", fileName, err)
 		}
 	}
 
@@ -67,10 +67,10 @@ func (collector *OsmLogsCollector) Collect() error {
 		}
 		osmNamespaces := append(namespacesInMesh, meshNamespacesList...)
 		if err = collectDataFromNamespaces(collector, osmNamespaces, rootPath, meshName); err != nil {
-			fmt.Printf("Failed to collect data from OSM monitored namespaces: %+v", err)
+			log.Printf("Failed to collect data from OSM monitored namespaces: %+v", err)
 		}
 		if err = collectControllerLogs(collector, rootPath, meshName); err != nil {
-			fmt.Printf("Failed to collect OSM controller logs for mesh %s: %+v", meshName, err)
+			log.Printf("Failed to collect OSM controller logs for mesh %s: %+v", meshName, err)
 		}
 	}
 
@@ -96,12 +96,12 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 		}
 
 		if err := collectPodConfigs(collector, rootPath, meshName, namespace); err != nil {
-			fmt.Printf("Failed to collect pod logs for ns %s", namespace, err)
+			log.Printf("Failed to collect pod logs for ns %s", namespace, err)
 		}
 
 		for fileName, kubeCmds := range namespaceResourcesMap {
 			if err := collector.collectKubeResourceToFile(rootPath, fileName, kubeCmds); err != nil {
-				fmt.Printf("Failed to collect %s in OSM monitored namespace %s: %+v", fileName, namespace, err)
+				log.Printf("Failed to collect %s in OSM monitored namespace %s: %+v", fileName, namespace, err)
 			}
 		}
 	}
@@ -117,7 +117,7 @@ func collectPodConfigs(collector *OsmLogsCollector, rootPath, meshName, namespac
 	for _, podName := range pods {
 		kubeCmds := []string{"get", "pods", "-n", namespace, podName, "-o", "json"}
 		if err := collector.collectKubeResourceToFile(rootPath, meshName+"_"+namespace+"_pod_config_"+podName, kubeCmds); err != nil {
-			fmt.Printf("Failed to collect config for pod %s in OSM monitored namespace %s: %+v", podName, namespace, err)
+			log.Printf("Failed to collect config for pod %s in OSM monitored namespace %s: %+v", podName, namespace, err)
 		}
 	}
 	return nil
