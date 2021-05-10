@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"fmt"
 	"log"
 	"strings"
 
@@ -29,7 +28,7 @@ func NewOsmLogsCollector(exporter interfaces.Exporter) *OsmLogsCollector {
 // Collect implements the interface method
 func (collector *OsmLogsCollector) Collect() error {
 	// Get all OSM deployments in order to collect information for various resources across all meshes in the cluster
-	meshList, err := getResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..meshName}"}, " ")
+	meshList, err := utils.GetResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..meshName}"}, " ")
 	if err != nil {
 		return err
 	}
@@ -54,13 +53,13 @@ func (collector *OsmLogsCollector) Collect() error {
 		}
 	}
 
-	meshNamespacesList, err := getResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..metadata.namespace}"}, " ")
+	meshNamespacesList, err := utils.GetResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..metadata.namespace}"}, " ")
 	if err != nil {
 		return err
 	}
 
 	for _, meshName := range meshList {
-		namespacesInMesh, err := getResourceList([]string{"get", "namespaces", "--all-namespaces", "-l", "openservicemesh.io/monitored-by=" + meshName, "-o", "jsonpath={..name}"}, " ")
+		namespacesInMesh, err := utils.GetResourceList([]string{"get", "namespaces", "--all-namespaces", "-l", "openservicemesh.io/monitored-by=" + meshName, "-o", "jsonpath={..name}"}, " ")
 		if err != nil {
 			log.Printf("Failed to get namespaces within osm mesh '%s': %+v\n", meshName, err)
 			continue
@@ -110,7 +109,7 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 }
 
 func collectPodConfigs(collector *OsmLogsCollector, rootPath, meshName, namespace string) error {
-	pods, err := getResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
+	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
 		return err
 	}
@@ -125,7 +124,7 @@ func collectPodConfigs(collector *OsmLogsCollector, rootPath, meshName, namespac
 
 // ** Collect logs of every OSM controller in a given mesh **
 func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName string) error {
-	controllerInfos, err := getResourceList([]string{"get", "pods", "--all-namespaces", "-l", "app=osm-controller", "-o", "custom-columns=NAME:{..metadata.name},NAMESPACE:{..metadata.namespace}"}, "\n")
+	controllerInfos, err := utils.GetResourceList([]string{"get", "pods", "--all-namespaces", "-l", "app=osm-controller", "-o", "custom-columns=NAME:{..metadata.name},NAMESPACE:{..metadata.namespace}"}, "\n")
 	if err != nil {
 		return err
 	}
