@@ -141,21 +141,3 @@ func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName strin
 	}
 	return nil
 }
-
-// Helper function to get a list of all resoures of given type in a specified namespace
-func getResourceList(kubeCmds []string, separator string) ([]string, error) {
-	outputStreams, err := utils.RunCommandOnContainerWithOutputStreams("kubectl", kubeCmds...)
-
-	if err != nil {
-		return nil, err
-	}
-
-	resourceList := outputStreams.Stdout
-	// If the resource is not found within the cluster, then log a message and do not return any resources.
-	if len(resourceList) == 0 {
-		err := fmt.Errorf("No '%s' resource found in the cluster for given kubectl command", kubeCmds[1])
-		return nil, err
-	}
-
-	return strings.Split(strings.Trim(resourceList, "\""), separator), nil
-}
