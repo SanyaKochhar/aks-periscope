@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type CommandOutputStreams struct {
@@ -87,6 +90,51 @@ func RunCommandOnContainerWithOutputStreams(command string, arg ...string) (Comm
 func RunCommandOnContainer(command string, arg ...string) (string, error) {
 	outputStreams, err := RunCommandOnContainerWithOutputStreams(command, arg...)
 	return outputStreams.Stdout, err
+}
+
+// RunBackgroundCommand starts running a command on a container system in the background and returns its process ID
+func RunBackgroundCommand(command string, arg ...string) (int, error) {
+	cmd := exec.Command(command, arg...)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Start()
+	if err != nil {
+		return 0, fmt.Errorf("Fail to start background command in container: %s", fmt.Sprint(err)+": "+stderr.String())
+	}
+	return cmd.Process.Pid, nil
+}
+
+// Finds and kills a process with a given process ID
+func KillProcess(pid int) error {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("Failed to find process with pid %d to kill: ", pid, fmt.Sprint(err))
+	}
+	if err := process.Kill(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Tries to issue an HTTP GET request up to maxRetries times
+func GetUrlWithRetries(url string, maxRetries int) ([]byte, error) {
+	var resp *http.Response
+	var err error
+	for i := 1; i <= maxRetries; i++ {
+		resp, err = http.Get(url)
+		if err == nil {
+			break
+		}
+		log.Printf("Error curling %s: %+v. %d retries remaining...\n", url, err, maxRetries-i)
+		time.Sleep(5 * time.Second)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
 }
 
 // WriteToFile writes data to a file

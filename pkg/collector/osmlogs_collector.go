@@ -2,6 +2,8 @@ package collector
 
 import (
 	"log"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/Azure/aks-periscope/pkg/interfaces"
@@ -39,7 +41,7 @@ func (collector *OsmLogsCollector) Collect() error {
 		return err
 	}
 
-	// ** Collect ground truth on OSM resources **
+	// ** Collects ground truth on OSM resources **
 	var groundTruthMap = map[string][]string{
 		"allResourcesTable":               []string{"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/name=openservicemesh.io", "-o", "wide"},
 		"allResourcesConfigs":             []string{"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/name=openservicemesh.io", "-o", "json"},
@@ -53,19 +55,18 @@ func (collector *OsmLogsCollector) Collect() error {
 		}
 	}
 
-	meshNamespacesList, err := utils.GetResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..metadata.namespace}"}, " ")
+	controllerNamespaces, err := utils.GetResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..metadata.namespace}"}, " ")
 	if err != nil {
 		return err
 	}
 
 	for _, meshName := range meshList {
-		namespacesInMesh, err := utils.GetResourceList([]string{"get", "namespaces", "--all-namespaces", "-l", "openservicemesh.io/monitored-by=" + meshName, "-o", "jsonpath={..name}"}, " ")
+		monitoredNamespaces, err := utils.GetResourceList([]string{"get", "namespaces", "--all-namespaces", "-l", "openservicemesh.io/monitored-by=" + meshName, "-o", "jsonpath={..name}"}, " ")
 		if err != nil {
 			log.Printf("Failed to get namespaces within osm mesh '%s': %+v\n", meshName, err)
 			continue
 		}
-		osmNamespaces := append(namespacesInMesh, meshNamespacesList...)
-		if err = collectDataFromNamespaces(collector, osmNamespaces, rootPath, meshName); err != nil {
+		if err = collectDataFromNamespaces(collector, monitoredNamespaces, controllerNamespaces, rootPath, meshName); err != nil {
 			log.Printf("Failed to collect data from OSM monitored namespaces: %+v", err)
 		}
 		if err = collectControllerLogs(collector, rootPath, meshName); err != nil {
@@ -76,9 +77,15 @@ func (collector *OsmLogsCollector) Collect() error {
 	return nil
 }
 
-// ** collectDataFromNamespaces collects data for namespaces monitored by a given mesh **
-func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string, rootPath, meshName string) error {
-	for _, namespace := range namespaces {
+// ** Collects data for namespaces monitored by a given mesh and osm-controller namespace **
+func collectDataFromNamespaces(collector *OsmLogsCollector, monitoredNamespaces, controllerNamespaces []string, rootPath, meshName string) error {
+	for _, namespace := range monitoredNamespaces {
+		if err := collectEnvoyData(collector, rootPath, meshName, namespace); err != nil {
+			log.Printf("Failed to collect Envoy configs in OSM monitored namespace %s: %+v", namespace, err)
+		}
+	}
+
+	for _, namespace := range append(monitoredNamespaces, controllerNamespaces...) {
 		var namespaceResourcesMap = map[string][]string{
 			meshName + "_" + namespace + "_metadata":                 []string{"get", "namespaces", namespace, "-o", "jsonpath={..metadata}", "-o", "json"},
 			meshName + "_" + namespace + "_services_table":           []string{"get", "services", "-n", namespace},
@@ -104,11 +111,10 @@ func collectDataFromNamespaces(collector *OsmLogsCollector, namespaces []string,
 			}
 		}
 	}
-
 	return nil
 }
 
-// **collectPodConfigs collects data for pods in a given mesh **
+// ** Collects configs for pods in given namespace **
 func collectPodConfigs(collector *OsmLogsCollector, rootPath, meshName, namespace string) error {
 	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
@@ -123,7 +129,47 @@ func collectPodConfigs(collector *OsmLogsCollector, rootPath, meshName, namespac
 	return nil
 }
 
-// **collectControllerLogs collects logs of every OSM controller in a given mesh **
+// ** Collects Envoy proxy config for pods in monitored namespace: port-forward and curl config dump **
+func collectEnvoyData(collector *OsmLogsCollector, rootPath, meshName, namespace string) error {
+	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
+	if err != nil {
+		return err
+	}
+	for _, podName := range pods {
+		pid, err := utils.RunBackgroundCommand("kubectl", "port-forward", podName, "-n", namespace, "15000:15000")
+		if err != nil {
+			log.Printf("Failed to collect Envoy config for pod %s in OSM monitored namespace %s: %+v", podName, namespace, err)
+			continue
+		}
+
+		envoyQueries := [5]string{"config_dump", "clusters", "listeners", "ready", "stats"}
+		for _, query := range envoyQueries {
+			responseBody, err := utils.GetUrlWithRetries("http://localhost:15000/"+query, 5)
+			if err != nil {
+				log.Printf("Failed to collect Envoy %s for pod %s in OSM monitored namespace %s: %+v", query, podName, namespace, err)
+				continue
+			}
+			// Remove secrets from response
+			re := regexp.MustCompile("(?m)[\r\n]+^.*inline_bytes.*$")
+			secretRemovedResponse := re.ReplaceAllString(string(responseBody), "---redacted---")
+
+			fileName := meshName + "_" + namespace + "_envoy_" + query + "_" + podName
+			resourceFile := filepath.Join(rootPath, fileName)
+			if err = utils.WriteToFile(resourceFile, secretRemovedResponse); err != nil {
+				log.Printf("Failed to write to file: %+v", err)
+				continue
+			}
+			collector.AddToCollectorFiles(resourceFile)
+		}
+		if err = utils.KillProcess(pid); err != nil {
+			log.Printf("Failed to kill process: %+v", err)
+			continue
+		}
+	}
+	return nil
+}
+
+// ** Collects logs of every OSM controller in a given mesh **
 func collectControllerLogs(collector *OsmLogsCollector, rootPath, meshName string) error {
 	controllerInfos, err := utils.GetResourceList([]string{"get", "pods", "--all-namespaces", "-l", "app=osm-controller", "-o", "custom-columns=NAME:{..metadata.name},NAMESPACE:{..metadata.namespace}"}, "\n")
 	if err != nil {
