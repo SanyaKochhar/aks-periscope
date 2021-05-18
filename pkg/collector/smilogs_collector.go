@@ -40,7 +40,7 @@ func (collector *SmiLogsCollector) Collect() error {
 
 	for _, smiCrd := range smiCrdList {
 		var smiResourcesMap = map[string][]string{
-			smiCrd + "_table.tsv":    []string{"get", smiCrd, "--all-namespaces", "-o=wide"},
+			smiCrd + "_list.tsv":     []string{"get", smiCrd, "--all-namespaces", "-o=wide"},
 			smiCrd + "_configs.json": []string{"get", smiCrd, "--all-namespaces", "-o=json"},
 		}
 
