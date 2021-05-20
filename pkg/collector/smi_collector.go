@@ -9,25 +9,25 @@ import (
 	"github.com/Azure/aks-periscope/pkg/utils"
 )
 
-// SmiLogsCollector defines an SmiLogs Collector struct
-type SmiLogsCollector struct {
+// SmiCollector defines an Smi Collector struct
+type SmiCollector struct {
 	BaseCollector
 }
 
-var _ interfaces.Collector = &SmiLogsCollector{}
+var _ interfaces.Collector = &SmiCollector{}
 
-// NewSmiLogsCollector is a constructor
-func NewSmiLogsCollector(exporter interfaces.Exporter) *SmiLogsCollector {
-	return &SmiLogsCollector{
+// NewSmiCollector is a constructor
+func NewSmiCollector(exporter interfaces.Exporter) *SmiCollector {
+	return &SmiCollector{
 		BaseCollector: BaseCollector{
-			collectorType: SmiLogs,
+			collectorType: Smi,
 			exporter:      exporter,
 		},
 	}
 }
 
 // Collect implements the interface method
-func (collector *SmiLogsCollector) Collect() error {
+func (collector *SmiCollector) Collect() error {
 	smiCrdList, err := getSmiCustomResourceDefinitions()
 	if err != nil {
 		return err
