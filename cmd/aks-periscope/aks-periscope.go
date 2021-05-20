@@ -46,11 +46,12 @@ func main() {
 	// Checks flags and adds specified collector if matched
 	flags := strings.Fields(os.Getenv("FLAGS_LIST"))
 	for _, flag := range flags {
-		if flag == "OSM" {
+		switch flag {
+		case "OSM":
 			osmLogsCollector := collector.NewOsmLogsCollector(exporter)
 			smiLogsCollector := collector.NewSmiLogsCollector(exporter)
 			collectors = append(collectors, osmLogsCollector, smiLogsCollector)
-		} else if flag == "SMI" {
+		case "SMI":
 			smiLogsCollector := collector.NewSmiLogsCollector(exporter)
 			collectors = append(collectors, smiLogsCollector)
 		}
