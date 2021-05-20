@@ -9,25 +9,25 @@ import (
 	"github.com/Azure/aks-periscope/pkg/utils"
 )
 
-// OsmLogsCollector defines an OsmLogs Collector struct
-type OsmLogsCollector struct {
+// OsmCollector defines an Osm Collector struct
+type OsmCollector struct {
 	BaseCollector
 }
 
-var _ interfaces.Collector = &OsmLogsCollector{}
+var _ interfaces.Collector = &OsmCollector{}
 
-// NewOsmLogsCollector is a constructor
-func NewOsmLogsCollector(exporter interfaces.Exporter) *OsmLogsCollector {
-	return &OsmLogsCollector{
+// NewOsmCollector is a constructor
+func NewOsmCollector(exporter interfaces.Exporter) *OsmCollector {
+	return &OsmCollector{
 		BaseCollector: BaseCollector{
-			collectorType: OsmLogs,
+			collectorType: Osm,
 			exporter:      exporter,
 		},
 	}
 }
 
 // Collect implements the interface method
-func (collector *OsmLogsCollector) Collect() error {
+func (collector *OsmCollector) Collect() error {
 	// Get all OSM deployments in order to collect information for various resources across all meshes in the cluster
 	meshList, err := utils.GetResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller", "-o", "jsonpath={..meshName}"}, " ")
 	if err != nil {
@@ -58,7 +58,7 @@ func (collector *OsmLogsCollector) Collect() error {
 }
 
 // Calls functions to collect data for osm-controller namespace and namespaces monitored by a given mesh
-func callNamespaceCollectors(collector *OsmLogsCollector, monitoredNamespaces, controllerNamespaces []string, rootPath, meshName string) {
+func callNamespaceCollectors(collector *OsmCollector, monitoredNamespaces, controllerNamespaces []string, rootPath, meshName string) {
 	for _, namespace := range monitoredNamespaces {
 		namespaceRootPath := filepath.Join(rootPath, "namespace_"+namespace)
 		if err := collectDataFromEnvoys(collector, namespaceRootPath, namespace); err != nil {
@@ -76,7 +76,7 @@ func callNamespaceCollectors(collector *OsmLogsCollector, monitoredNamespaces, c
 }
 
 // ** Collects information about general resources in a given namespace **
-func collectNamespaceResources(collector *OsmLogsCollector, rootPath, namespace string) {
+func collectNamespaceResources(collector *OsmCollector, rootPath, namespace string) {
 	if err := collectPodConfigs(collector, rootPath, namespace); err != nil {
 		log.Printf("Failed to collect pod configs for ns %s: %+v", namespace, err)
 	}
@@ -103,7 +103,7 @@ func collectNamespaceResources(collector *OsmLogsCollector, rootPath, namespace 
 }
 
 // ** Collects configs for pods in given namespace **
-func collectPodConfigs(collector *OsmLogsCollector, rootPath, namespace string) error {
+func collectPodConfigs(collector *OsmCollector, rootPath, namespace string) error {
 	rootPath = filepath.Join(rootPath, "pod_configs")
 	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
@@ -119,7 +119,7 @@ func collectPodConfigs(collector *OsmLogsCollector, rootPath, namespace string) 
 }
 
 // ** Collects Envoy proxy config for pods in monitored namespace: port-forward and curl config dump **
-func collectDataFromEnvoys(collector *OsmLogsCollector, rootPath, namespace string) error {
+func collectDataFromEnvoys(collector *OsmCollector, rootPath, namespace string) error {
 	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
 		return err
@@ -159,7 +159,7 @@ func collectDataFromEnvoys(collector *OsmLogsCollector, rootPath, namespace stri
 }
 
 // ** Collects logs of every pod in a given namespace **
-func collectPodLogs(collector *OsmLogsCollector, rootPath, namespace string) error {
+func collectPodLogs(collector *OsmCollector, rootPath, namespace string) error {
 	rootPath = filepath.Join(rootPath, "pod_logs")
 	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
@@ -174,7 +174,7 @@ func collectPodLogs(collector *OsmLogsCollector, rootPath, namespace string) err
 }
 
 // ** Collects ground truth on resources in given mesh **
-func collectGroundTruth(collector *OsmLogsCollector, rootPath, meshName string) {
+func collectGroundTruth(collector *OsmCollector, rootPath, meshName string) {
 	var groundTruthMap = map[string][]string{
 		"all_resources_list.tsv":                 {"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/instance=" + meshName, "-o", "wide"},
 		"all_resources_configs.json":             {"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/instance=" + meshName, "-o", "json"},

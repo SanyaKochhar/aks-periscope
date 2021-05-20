@@ -41,10 +41,10 @@ func main() {
 	collectors = append(collectors, kubeletCmdCollector)
 	systemPerfCollector := collector.NewSystemPerfCollector(exporter)
 	collectors = append(collectors, systemPerfCollector)
-	osmLogsCollector := collector.NewOsmLogsCollector(exporter)
-	collectors = append(collectors, osmLogsCollector)
-	smiLogsCollector := collector.NewSmiLogsCollector(exporter)
-	collectors = append(collectors, smiLogsCollector)
+	osmCollector := collector.NewOsmCollector(exporter)
+	collectors = append(collectors, osmCollector)
+	smiCollector := collector.NewSmiCollector(exporter)
+	collectors = append(collectors, smiCollector)
 
 	for _, c := range collectors {
 		waitgroup.Add(1)
