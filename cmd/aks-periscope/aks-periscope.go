@@ -48,12 +48,12 @@ func main() {
 	for _, flag := range flags {
 		switch flag {
 		case "OSM":
-			osmLogsCollector := collector.NewOsmLogsCollector(exporter)
-			smiLogsCollector := collector.NewSmiLogsCollector(exporter)
-			collectors = append(collectors, osmLogsCollector, smiLogsCollector)
+			osmCollector := collector.NewOsmCollector(exporter)
+			smiCollector := collector.NewSmiCollector(exporter)
+			collectors = append(collectors, osmCollector, smiCollector)
 		case "SMI":
-			smiLogsCollector := collector.NewSmiLogsCollector(exporter)
-			collectors = append(collectors, smiLogsCollector)
+			smiCollector := collector.NewSmiCollector(exporter)
+			collectors = append(collectors, smiCollector)
 		}
 	}
 
