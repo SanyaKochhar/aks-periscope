@@ -127,18 +127,22 @@ func GetUrlWithRetries(url string, maxRetries int) ([]byte, error) {
 		if err == nil {
 			break
 		}
-		log.Printf("Error curling %s: %+v. %d retries remaining...\n", url, err, maxRetries-i)
+		log.Printf("Error with HTTP GET %s: %+v. %d retries remaining...\n", url, err, maxRetries-i)
 		time.Sleep(5 * time.Second)
 	}
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("HTTP GET request succeeded for url %s", url)
 	defer resp.Body.Close()
 	return ioutil.ReadAll(resp.Body)
 }
 
 // WriteToFile writes data to a file
 func WriteToFile(fileName string, data string) error {
+	if err := os.MkdirAll(filepath.Dir(fileName), os.ModePerm); err != nil {
+		return fmt.Errorf("Fail to create path directories for file %s: %+v", fileName, err)
+	}
 	f, err := os.Create(fileName)
 	defer f.Close()
 	if err != nil {
