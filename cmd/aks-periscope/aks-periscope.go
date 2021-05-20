@@ -45,13 +45,14 @@ func main() {
 
 	// Checks flags and adds specified collector if matched
 	flags := strings.Fields(os.Getenv("FLAGS_LIST"))
+	isOsmEnabled := false
 	for _, flag := range flags {
-		switch flag {
-		case "OSM":
+		if flag == "OSM" {
+			isOsmEnabled = true
 			osmCollector := collector.NewOsmCollector(exporter)
 			smiCollector := collector.NewSmiCollector(exporter)
 			collectors = append(collectors, osmCollector, smiCollector)
-		case "SMI":
+		} else if flag == "SMI" && !isOsmEnabled {
 			smiCollector := collector.NewSmiCollector(exporter)
 			collectors = append(collectors, smiCollector)
 		}
