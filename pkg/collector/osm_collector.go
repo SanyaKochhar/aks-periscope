@@ -42,14 +42,14 @@ func (collector *OsmCollector) Collect() error {
 
 	for _, meshName := range meshList {
 		meshRootPath := filepath.Join(rootPath, "mesh_"+meshName)
+
 		monitoredNamespaces, err := utils.GetResourceList([]string{"get", "namespaces", "--all-namespaces", "-l", "openservicemesh.io/monitored-by=" + meshName, "-o", "jsonpath={..name}"}, " ")
 		if err != nil {
-			log.Printf("Failed to get namespaces within osm mesh '%s': %+v\n", meshName, err)
-			continue
+			log.Printf("Failed to find any namespaces monitored by OSM named '%s': %+v\n", meshName, err)
 		}
 		controllerNamespaces, err := utils.GetResourceList([]string{"get", "deployments", "--all-namespaces", "-l", "app=osm-controller,meshName=" + meshName, "-o", "jsonpath={..metadata.namespace}"}, " ")
 		if err != nil {
-			return err
+			log.Printf("Failed to find controller namespace(s) for OSM named '%s': %+v\n", meshName, err)
 		}
 		callNamespaceCollectors(collector, monitoredNamespaces, controllerNamespaces, meshRootPath, meshName)
 		collectGroundTruth(collector, meshRootPath, meshName)
