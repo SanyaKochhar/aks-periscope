@@ -25,9 +25,9 @@ const (
 	NetworkOutbound
 	// NodeLogs defines NodeLogs Collector Type
 	NodeLogs
-	// Osm defines Osm Collector Type
+	// Osm defines Open Service Mesh Collector Type
 	Osm
-	// Smi defines Smi Collector Type
+	// Smi defines Service Mesh Interface Collector Type
 	Smi
 	// SystemLogs defines SystemLogs Collector Type
 	SystemLogs
