@@ -109,7 +109,7 @@ spec:
           path: /var/log/aks-periscope
           type: DirectoryOrCreate
 ---
-apiVersion: v1
+apiVersion: v1 
 kind: Secret
 metadata:
   name: azureblob-secret
