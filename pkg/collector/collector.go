@@ -27,8 +27,6 @@ const (
 	NodeLogs
 	// Osm defines Open Service Mesh Collector Type
 	Osm
-	// Smi defines Service Mesh Interface Collector Type
-	Smi
 	// SystemLogs defines SystemLogs Collector Type
 	SystemLogs
 	// SystemPerf defines SystemPerf Collector Type
@@ -37,7 +35,7 @@ const (
 
 // Name returns type name
 func (t Type) name() string {
-	return [...]string{"dns", "containerlogs", "iptables", "kubeletcmd", "kubeobjects", "networkoutbound", "nodelogs", "osm", "smi", "systemlogs", "systemperf"}[t]
+	return [...]string{"dns", "containerlogs", "iptables", "kubeletcmd", "kubeobjects", "networkoutbound", "nodelogs", "osm", "systemlogs", "systemperf"}[t]
 }
 
 // BaseCollector defines Base Collector

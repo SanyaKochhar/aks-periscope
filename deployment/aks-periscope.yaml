@@ -26,9 +26,6 @@ rules:
 - apiGroups: ["apiextensions.k8s.io"]
   resources: ["customresourcedefinitions"]
   verbs: ["get", "list", "watch"]
-- apiGroups: ["access.smi-spec.io", "specs.smi-spec.io", "split.smi-spec.io"]
-  resources: ["*"]
-  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -149,7 +146,7 @@ metadata:
   name: collectorflags-config
   namespace: aks-periscope
 data:
-  FLAGS_LIST: # enable collector: OSM, SMI
+  FLAGS_LIST: # enable collector: OSM
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
