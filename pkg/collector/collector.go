@@ -15,6 +15,8 @@ const (
 	DNS Type = iota
 	// ContainerLogs defines ContainerLogs Collector Type
 	ContainerLogs
+	//Helm defines Helm Collector Type
+	Helm
 	// IPTables defines IPTables Collector Type
 	IPTables
 	// KubeletCmd defines KubeletCmd Collector Type
