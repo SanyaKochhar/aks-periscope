@@ -44,23 +44,13 @@ func main() {
 	collectors = append(collectors, kubeObjectsCollector)
 	collectors = append(collectors, networkOutboundCollector)
 
-	smiEnabled := false
 	connectedClusterEnabled := false
 	for _, flag := range flags {
 		if strings.EqualFold(flag, "connectedCluster") {
 			connectedClusterEnabled = true
 			collectors = append(collectors, helmCollector)
 		} else if strings.EqualFold(flag, "OSM") {
-			if !smiEnabled {
-				smiEnabled = true
-				collectors = append(collectors, smiCollector)
-			}
-			collectors = append(collectors, osmCollector)
-		} else if strings.EqualFold(flag, "SMI") {
-			if !smiEnabled {
-				smiEnabled = true
-				collectors = append(collectors, smiCollector)
-			}
+			collectors = append(collectors, osmCollector, smiCollector)
 		}
 	}
 
