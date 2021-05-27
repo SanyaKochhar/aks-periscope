@@ -23,7 +23,7 @@ func main() {
 		log.Printf("Failed to create CRD: %+v", err)
 	}
 
-	clusterType := os.Getenv("CLUSTER_TYPE")
+	flags := strings.Fields(os.Getenv("FLAG_LIST"))
 
 	collectors := []interfaces.Collector{}
 	containerLogsCollector := collector.NewContainerLogsCollector(exporter)
@@ -36,39 +36,40 @@ func main() {
 	kubeletCmdCollector := collector.NewKubeletCmdCollector(exporter)
 	systemPerfCollector := collector.NewSystemPerfCollector(exporter)
 	helmCollector := collector.NewHelmCollector(exporter)
+	osmCollector := collector.NewOsmCollector(exporter)
+	smiCollector := collector.NewSmiCollector(exporter)
 
-	if strings.EqualFold(clusterType, "connectedCluster") {
-		collectors = append(collectors, containerLogsCollector)
-		collectors = append(collectors, dnsCollector)
-		collectors = append(collectors, helmCollector)
-		collectors = append(collectors, kubeObjectsCollector)
-		collectors = append(collectors, networkOutboundCollector)
+	collectors = append(collectors, containerLogsCollector)
+	collectors = append(collectors, dnsCollector)
+	collectors = append(collectors, kubeObjectsCollector)
+	collectors = append(collectors, networkOutboundCollector)
 
-	} else {
-		collectors = append(collectors, containerLogsCollector)
-		collectors = append(collectors, dnsCollector)
-		collectors = append(collectors, kubeObjectsCollector)
-		collectors = append(collectors, networkOutboundCollector)
+	smiEnabled := false
+	connectedClusterEnabled := false
+	for _, flag := range flags {
+		if strings.EqualFold(flag, "connectedCluster") {
+			connectedClusterEnabled = true
+			collectors = append(collectors, helmCollector)
+		} else if strings.EqualFold(flag, "OSM") {
+			if !smiEnabled {
+				smiEnabled = true
+				collectors = append(collectors, smiCollector)
+			}
+			collectors = append(collectors, osmCollector)
+		} else if strings.EqualFold(flag, "SMI") {
+			if !smiEnabled {
+				smiEnabled = true
+				collectors = append(collectors, smiCollector)
+			}
+		}
+	}
+
+	if !connectedClusterEnabled {
 		collectors = append(collectors, systemLogsCollector)
 		collectors = append(collectors, ipTablesCollector)
 		collectors = append(collectors, nodeLogsCollector)
 		collectors = append(collectors, kubeletCmdCollector)
 		collectors = append(collectors, systemPerfCollector)
-	}
-
-	// Checks flags and adds specified collector if matched
-	flags := strings.Fields(os.Getenv("FLAGS_LIST"))
-	isOsmEnabled := false
-	for _, flag := range flags {
-		if flag == "OSM" {
-			isOsmEnabled = true
-			osmCollector := collector.NewOsmCollector(exporter)
-			smiCollector := collector.NewSmiCollector(exporter)
-			collectors = append(collectors, osmCollector, smiCollector)
-		} else if flag == "SMI" && !isOsmEnabled {
-			smiCollector := collector.NewSmiCollector(exporter)
-			collectors = append(collectors, smiCollector)
-		}
 	}
 
 	for _, c := range collectors {
