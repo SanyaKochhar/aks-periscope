@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("Failed to create CRD: %v", err)
 	}
 
-	clusterType := os.Getenv("CLUSTER_TYPE")
+	collectorFlags := strings.Fields(os.Getenv("COLLECTOR_FLAGS_LIST"))
 
 	collectors := []interfaces.Collector{}
 	containerLogsCollector := collector.NewContainerLogsCollector(exporter)
@@ -35,19 +35,24 @@ func main() {
 	kubeletCmdCollector := collector.NewKubeletCmdCollector(exporter)
 	systemPerfCollector := collector.NewSystemPerfCollector(exporter)
 	helmCollector := collector.NewHelmCollector(exporter)
+	osmCollector := collector.NewOsmCollector(exporter)
 
-	if strings.EqualFold(clusterType, "connectedCluster") {
-		collectors = append(collectors, containerLogsCollector)
-		collectors = append(collectors, dnsCollector)
-		collectors = append(collectors, helmCollector)
-		collectors = append(collectors, kubeObjectsCollector)
-		collectors = append(collectors, networkOutboundCollector)
+	collectors = append(collectors, containerLogsCollector)
+	collectors = append(collectors, dnsCollector)
+	collectors = append(collectors, kubeObjectsCollector)
+	collectors = append(collectors, networkOutboundCollector)
 
-	} else {
-		collectors = append(collectors, containerLogsCollector)
-		collectors = append(collectors, dnsCollector)
-		collectors = append(collectors, kubeObjectsCollector)
-		collectors = append(collectors, networkOutboundCollector)
+	connectedClusterEnabled := false
+	for _, flag := range collectorFlags {
+		if strings.EqualFold(flag, "connectedCluster") {
+			connectedClusterEnabled = true
+			collectors = append(collectors, helmCollector)
+		} else if strings.EqualFold(flag, "OSM") {
+			collectors = append(collectors, osmCollector)
+		}
+	}
+
+	if !connectedClusterEnabled {
 		collectors = append(collectors, systemLogsCollector)
 		collectors = append(collectors, ipTablesCollector)
 		collectors = append(collectors, nodeLogsCollector)
