@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("Failed to create CRD: %v", err)
 	}
 
-	collectorFlags := strings.Fields(os.Getenv("COLLECTOR_FLAGS_LIST"))
+	collectorList := strings.Fields(os.Getenv("COLLECTOR_LIST"))
 
 	collectors := []interfaces.Collector{}
 	containerLogsCollector := collector.NewContainerLogsCollector(exporter)
@@ -42,22 +42,18 @@ func main() {
 	collectors = append(collectors, kubeObjectsCollector)
 	collectors = append(collectors, networkOutboundCollector)
 
-	connectedClusterEnabled := false
-	for _, flag := range collectorFlags {
-		if strings.EqualFold(flag, "connectedCluster") {
-			connectedClusterEnabled = true
-			collectors = append(collectors, helmCollector)
-		} else if strings.EqualFold(flag, "OSM") {
-			collectors = append(collectors, osmCollector)
-		}
-	}
-
-	if !connectedClusterEnabled {
+	if contains(collectorList, "connectedCluster") {
+		collectors = append(collectors, helmCollector)
+	} else {
 		collectors = append(collectors, systemLogsCollector)
 		collectors = append(collectors, ipTablesCollector)
 		collectors = append(collectors, nodeLogsCollector)
 		collectors = append(collectors, kubeletCmdCollector)
 		collectors = append(collectors, systemPerfCollector)
+	}
+
+	if contains(collectorList, "OSM") {
+		collectors = append(collectors, osmCollector)
 	}
 
 	collectorGrp := new(sync.WaitGroup)
@@ -148,4 +144,13 @@ func zipAndExport(exporter interfaces.Exporter) error {
 	}
 
 	return nil
+}
+
+func contains(flagsList []string, flag string) bool {
+	for _, f := range flagsList {
+		if strings.EqualFold(f, flag) {
+			return true
+		}
+	}
+	return false
 }
