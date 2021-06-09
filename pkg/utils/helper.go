@@ -86,7 +86,7 @@ func RunCommandOnContainerWithOutputStreams(command string, arg ...string) (Comm
 	return outputStreams, nil
 }
 
-// RunCommandOnContainer  runs a command on container system and returns the stdout output stream
+// RunCommandOnContainer runs a command on container system and returns the stdout output stream
 func RunCommandOnContainer(command string, arg ...string) (string, error) {
 	outputStreams, err := RunCommandOnContainerWithOutputStreams(command, arg...)
 	return outputStreams.Stdout, err
@@ -110,7 +110,7 @@ func RunBackgroundCommand(command string, arg ...string) (int, error) {
 func KillProcess(pid int) error {
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		return fmt.Errorf("Failed to find process with pid %d to kill: ", pid, fmt.Sprint(err))
+		return fmt.Errorf("Failed to find process with pid %d to kill: %w", pid, fmt.Sprint(err))
 	}
 	if err := process.Kill(); err != nil {
 		return err
@@ -120,28 +120,27 @@ func KillProcess(pid int) error {
 
 // Tries to issue an HTTP GET request up to maxRetries times
 func GetUrlWithRetries(url string, maxRetries int) ([]byte, error) {
-	var resp *http.Response
-	var err error
-	for i := 1; i <= maxRetries; i++ {
-		resp, err = http.Get(url)
-		if err == nil {
-			break
+	retry := 1
+	for {
+		resp, err := http.Get(url)
+		if err != nil {
+			if retry == maxRetries {
+				return nil, fmt.Errorf("max retries reached for request HTTP Get %s: %w", url, err)
+			}
+			time.Sleep(5 * time.Second)
+		} else {
+			defer resp.Body.Close()
+			log.Printf("HTTP GET request succeeded for url %s", url)
+			return ioutil.ReadAll(resp.Body)
 		}
-		log.Printf("Error with HTTP GET %s: %+v. %d retries remaining...\n", url, err, maxRetries-i)
-		time.Sleep(5 * time.Second)
 	}
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("HTTP GET request succeeded for url %s", url)
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
 }
+
 
 // WriteToFile writes data to a file
 func WriteToFile(fileName string, data string) error {
 	if err := os.MkdirAll(filepath.Dir(fileName), os.ModePerm); err != nil {
-		return fmt.Errorf("Fail to create path directories for file %s: %+v", fileName, err)
+		return fmt.Errorf("Fail to create path directories for file %s: %w", fileName, err)
 	}
 	f, err := os.Create(fileName)
 	if err != nil {
@@ -295,8 +294,7 @@ func GetResourceList(kubeCmds []string, separator string) ([]string, error) {
 	resourceList := outputStreams.Stdout
 	// If the resource is not found within the cluster, then log a message and do not return any resources.
 	if len(resourceList) == 0 {
-		err := fmt.Errorf("No '%s' resource found in the cluster for given kubectl command", kubeCmds[1])
-		return nil, err
+		return nil, fmt.Errorf("No '%s' resource found in the cluster for given kubectl command", kubeCmds[1])
 	}
 
 	return strings.Split(strings.Trim(resourceList, "\""), separator), nil

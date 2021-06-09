@@ -57,8 +57,8 @@ func (collector *OsmCollector) Collect() error {
 	return nil
 }
 
-// Calls functions to collect data for osm-controller namespace and namespaces monitored by a given mesh
-func callNamespaceCollectors(collector *OsmCollector, monitoredNamespaces, controllerNamespaces []string, rootPath, meshName string) {
+// callNamespaceCollectors calls functions to collect data for osm-controller namespace and namespaces monitored by a given mesh
+func callNamespaceCollectors(collector *OsmCollector, monitoredNamespaces []string, controllerNamespaces []string, rootPath string, meshName string) {
 	for _, namespace := range monitoredNamespaces {
 		namespaceRootPath := filepath.Join(rootPath, "namespace_"+namespace)
 		if err := collectDataFromEnvoys(collector, namespaceRootPath, namespace); err != nil {
@@ -75,8 +75,8 @@ func callNamespaceCollectors(collector *OsmCollector, monitoredNamespaces, contr
 	}
 }
 
-// ** Collects information about general resources in a given namespace **
-func collectNamespaceResources(collector *OsmCollector, rootPath, namespace string) {
+// collectNamespaceResources collects information about general resources in a given namespace
+func collectNamespaceResources(collector *OsmCollector, rootPath string, namespace string) {
 	if err := collectPodConfigs(collector, rootPath, namespace); err != nil {
 		log.Printf("Failed to collect pod configs for ns %s: %+v", namespace, err)
 	}
@@ -102,8 +102,8 @@ func collectNamespaceResources(collector *OsmCollector, rootPath, namespace stri
 	}
 }
 
-// ** Collects configs for pods in given namespace **
-func collectPodConfigs(collector *OsmCollector, rootPath, namespace string) error {
+// collectPodConfigs collects configs for pods in given namespace
+func collectPodConfigs(collector *OsmCollector, rootPath string, namespace string) error {
 	rootPath = filepath.Join(rootPath, "pod_configs")
 	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
@@ -118,8 +118,8 @@ func collectPodConfigs(collector *OsmCollector, rootPath, namespace string) erro
 	return nil
 }
 
-// ** Collects Envoy proxy config for pods in monitored namespace: port-forward and curl config dump **
-func collectDataFromEnvoys(collector *OsmCollector, rootPath, namespace string) error {
+// collectDataFromEnvoys collects Envoy proxy config for pods in monitored namespace: port-forward and curl config dump
+func collectDataFromEnvoys(collector *OsmCollector, rootPath string, namespace string) error {
 	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
 		return err
@@ -138,7 +138,7 @@ func collectDataFromEnvoys(collector *OsmCollector, rootPath, namespace string) 
 				log.Printf("Failed to collect Envoy %s for pod %s in OSM monitored namespace %s: %+v", query, podName, namespace, err)
 				continue
 			}
-			// Remove secrets from response
+			// Remove certificate secrets from Envoy config i.e., "inline_bytes" field from response
 			re := regexp.MustCompile("(?m)[\r\n]+^.*inline_bytes.*$")
 			secretRemovedResponse := re.ReplaceAllString(string(responseBody), "---redacted---")
 
@@ -158,8 +158,8 @@ func collectDataFromEnvoys(collector *OsmCollector, rootPath, namespace string) 
 	return nil
 }
 
-// ** Collects logs of every pod in a given namespace **
-func collectPodLogs(collector *OsmCollector, rootPath, namespace string) error {
+// collectPodLogs collects logs of every pod in a given namespace
+func collectPodLogs(collector *OsmCollector, rootPath string, namespace string) error {
 	rootPath = filepath.Join(rootPath, "pod_logs")
 	pods, err := utils.GetResourceList([]string{"get", "pods", "-n", namespace, "-o", "jsonpath={..metadata.name}"}, " ")
 	if err != nil {
@@ -173,8 +173,8 @@ func collectPodLogs(collector *OsmCollector, rootPath, namespace string) error {
 	return nil
 }
 
-// ** Collects ground truth on resources in given mesh **
-func collectGroundTruth(collector *OsmCollector, rootPath, meshName string) {
+// collectGroundTruth collects ground truth on resources in given mesh
+func collectGroundTruth(collector *OsmCollector, rootPath string, meshName string) {
 	var groundTruthMap = map[string][]string{
 		"all_resources_list.tsv":                 {"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/instance=" + meshName, "-o", "wide"},
 		"all_resources_configs.json":             {"get", "all", "--all-namespaces", "-l", "app.kubernetes.io/instance=" + meshName, "-o", "json"},
