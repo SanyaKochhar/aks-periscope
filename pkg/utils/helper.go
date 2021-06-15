@@ -162,7 +162,7 @@ func RunBackgroundCommand(command string, arg ...string) (int, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Start()
 	if err != nil {
-		return 0, fmt.Errorf("Fail to start background command in container: %s", fmt.Sprint(err)+": "+stderr.String())
+		return 0, fmt.Errorf("Start background command in container exited with message %s: %w", stderr.String(), err)
 	}
 	return cmd.Process.Pid, nil
 }
@@ -171,7 +171,7 @@ func RunBackgroundCommand(command string, arg ...string) (int, error) {
 func KillProcess(pid int) error {
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		return fmt.Errorf("Failed to find process with pid %d to kill: %+v", pid, fmt.Sprint(err))
+		return fmt.Errorf("Find process with pid %d to kill: %w", pid, err)
 	}
 	if err := process.Kill(); err != nil {
 		return err
