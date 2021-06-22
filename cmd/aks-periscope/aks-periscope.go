@@ -44,6 +44,7 @@ func main() {
 	systemPerfCollector := collector.NewSystemPerfCollector(exporter)
 	helmCollector := collector.NewHelmCollector(exporter)
 	osmCollector := collector.NewOsmCollector(exporter)
+	smiCollector := collector.NewSmiCollector(exporter)
 
 	collectors = append(collectors, containerLogsCollector)
 	collectors = append(collectors, dnsCollector)
@@ -62,6 +63,10 @@ func main() {
 
 	if contains(collectorList, "OSM") {
 		collectors = append(collectors, osmCollector)
+	}
+
+	if contains(collectorList, "SMI") {
+		collectors = append(collectors, smiCollector)
 	}
 
 	collectorGrp := new(sync.WaitGroup)
