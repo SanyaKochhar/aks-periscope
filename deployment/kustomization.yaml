@@ -1,17 +1,44 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 namespace: aks-periscope
-
 resources:
-- namespace.yaml
-- cluster-role.yaml
-- cluster-role-binding.yaml
-- config-map.yaml
-- crd.yaml
-- daemon-set.yaml
-- service-account.yaml
-
+  - namespace.yaml
+  - cluster-role.yaml
+  - cluster-role-binding.yaml
+  - config-map.yaml
+  - crd.yaml
+  - daemon-set.yaml
+  - service-account.yaml
+secretGenerator:
+  - name: azureblob-secret
+    literals:
+      - AZURE_BLOB_SAS_KEY=<unencoded SAS token>
+patches:
+  - target:
+      group: apps
+      kind: DaemonSet
+      name: aks-periscope
+      version: v1
+    patch: |-
+      - op: add
+        path: '/spec/template/spec/containers/0/env'
+        value:
+          - name: AZURE_BLOB_ACCOUNT_NAME
+            value: <aksaddon>
+          - name: AZURE_BLOB_CONTAINER_NAME
+            value: <container name of choice>
+  - target:
+      group: apps
+      kind: DaemonSet
+      name: aks-periscope
+      version: v1
+    patch: |-
+      - op: add
+        path: '/spec/template/spec/containers/0/envFrom/-'
+        value:
+          secretRef:
+            name: azureblob-secret
 images:
-  - name: aksrepos.azurecr.io/staging/aks-periscope
-    newTag: v0.3
+  - name: aks-periscope
+    newName: sanyakochh/aks-periscope:latest
+    newTag: latest

@@ -31,6 +31,8 @@ spec:
             name: kubeobjects-config
         - configMapRef:
             name: nodelogs-config
+        - configMapRef:
+            name: collectors-config
         volumeMounts:
         - name: varlog
           mountPath: /var/log
